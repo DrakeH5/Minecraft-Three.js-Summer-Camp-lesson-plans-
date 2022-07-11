@@ -1,0 +1,212 @@
+<html>
+  <head><script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script></head>
+  <body>
+    <style>
+    body {
+      margin: 0;
+      height: 100vh;
+    }
+
+    canvas {
+      display: block;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+    </style>
+
+
+    <script src="./three.js-dev/build/three.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/p5@1.2.0/lib/p5.js"></script>
+    <script>
+function setup(){
+    var scaleFactor = new THREE.BoxGeometry(1, 1, 1); //(width, height, depth)
+
+    //types of blocks
+    const dirt = [
+      "#926c4d", //color
+      0, //hardness
+    ]
+    const grass = [
+      "olivedrab", //color
+      0, //hardness
+    ]
+    const stone = [
+      "grey", //color
+      0, //hardness
+    ]
+    const wood = [
+      "peru", //color
+      0, //hardness
+    ]
+    const leaves = [
+      "lightgreen", //color
+      0, //hardness
+    ]
+    const sand = [
+      "#c2b280", //color
+      0, //hardness
+    ]
+    const gold = [
+      "gold", //color
+      0, //hardness
+    ]
+    const iron = [
+      "white", //color
+      0, //hardness
+    ]
+    const diamond = [
+      "skyblue", //color
+      0, //hardness
+    ]
+
+
+    var minerals = [gold, iron, diamond]
+
+
+
+        var scene = new THREE.Scene(); //created a three.js scene
+
+        var camera = new THREE.PerspectiveCamera(75,window.innerWidth/window.innerHeight,0.1,1000) //create a camera
+        camera.position.y = 25;
+
+        var renderer = new THREE.WebGLRenderer({antialias: true}); //create renderer
+        renderer.setClearColor("lightblue"); //essentially a background color
+        renderer.setSize(window.innerWidth,window.innerHeight); //set renderer size to size of the page
+
+        document.body.appendChild(renderer.domElement); //creates a canvas with our render's specifications
+
+
+        renderer.render(scene, camera); //just render (show) everything on our canvas
+
+
+
+
+        var chunks = [];
+        var worldLimit = 4; //sets limit of how many chunks the game will create; MUST be a square number
+        var maxHeight = 65; //max build height of the world
+
+        for(i=0;i<worldLimit;i++){
+          chunks.push([]);
+          for(i2=0;i2<maxHeight;i2++){
+            chunks[i].push([]);
+            var yoff=i*16;
+            for(i3=0;i3<16;i3++){
+              chunks[i][i2].push([]);
+              var xoff=i*16;
+              for(i4=0;i4<16;i4++){
+                var index = (i4 + i3 * 16) * 4;
+                var r = (noise(xoff, yoff) * maxHeight-15)+20;
+                if(r<1){r=1}
+                if(r>i2){
+                  if(i2>maxHeight-(maxHeight/2.5)){
+                    chunks[i][i2][i3].push(grass)
+                  } else if(i2>maxHeight/2){
+                    chunks[i][i2][i3].push(dirt)
+                  } else if(i2<maxHeight/5&&Math.random()>0.99){
+                    chunks[i][i2][i3].push(minerals[Math.floor(minerals.length * Math.random())])
+                  } else {
+                    chunks[i][i2][i3].push(stone)
+                  }
+                }
+                xoff+=0.02;
+              }
+              yoff+=0.02;
+            }
+          }
+        }
+
+
+        var block = new THREE.Mesh(scaleFactor, new THREE.MeshLambertMaterial({color: gold[0]}));
+        scene.add(block); //adds our mesh to the scene
+
+
+        var chunksX = 0;
+        var chunksZ = 0;
+        for(i=0;i<worldLimit;i++){
+          for(i2=0;i2<maxHeight;i2++){
+            for(i3=0;i3<16;i3++){
+              for(i4=0;i4<16;i4++){
+                if(chunks[i][i2][i3][i4]!=undefined){
+                  if(i2<1||i3<1||i4<1
+                  ||i2==maxHeight-1||i3==15||i4==15){
+                  var block = new THREE.Mesh(scaleFactor, new THREE.MeshLambertMaterial({color: chunks[i][i2][i3][i4][0]}));
+                  block.position.x = i4+16*chunksX;
+                  block.position.z = i3+16*chunksZ;
+                  block.position.y = i2;
+                  scene.add(block);
+                } else {
+                  if(chunks[i][i2-1][i3][i4]&&chunks[i][i2+1][i3][i4]&&
+                  chunks[i][i2][i3-1][i4]&&chunks[i][i2][i3+1][i4]&&
+                  chunks[i][i2][i3][i4-1]&&chunks[i][i2][i3][i4+1]){}else{
+                    var block = new THREE.Mesh(scaleFactor, new THREE.MeshLambertMaterial({color: chunks[i][i2][i3][i4][0]}));
+                    block.position.x = i4+16*chunksX;
+                    block.position.z = i3+16*chunksZ;
+                    block.position.y = i2;
+                    scene.add(block);
+                  }
+                }
+                }
+              }
+            }
+          }
+          if(chunksX<Math.sqrt(worldLimit)-1){chunksX++}else{chunksX=0;chunksZ++;}
+        }
+
+
+        var light = new THREE.PointLight(0xFFFFFF, 1, 5000000000000000000000000000); //creates a light (color, intensity, distance)
+        light.position.set(0, 1000000, 0); //sets light position (x, y, z)
+        scene.add(light); //add the light to the scene
+
+
+        var render = function() {
+          requestAnimationFrame(render);
+          renderer.render(scene, camera); //just render (show) everything on our canvas
+        }
+
+        render();
+
+
+
+        //disapear mouse cursor
+        document.body.requestPointerLock = document.body.requestPointerLock ||
+                                    document.body.mozRequestPointerLock;
+        document.exitPointerLock = document.exitPointerLock ||
+                                   document.mozExitPointerLock;
+        document.body.onclick = function() {
+          document.body.requestPointerLock();
+        };
+        //end of code disapearing mouse cursor
+
+
+        document.body.onmousemove = function(evt) {
+          camera.rotation.y-=evt.movementX/65;
+          //if(Math.abs(camera.rotation.x)<1){camera.rotation.x-=evt.movementY/65;}else{camera.rotation.x-=(camera.rotation.x/Math.abs(camera.rotation.x))/100}
+        };
+
+        $(document.body).keydown(function (evt) {
+          if(evt.keyCode==38||evt.keyCode==87) { //forwards
+            var direction = new THREE.Vector3();
+            camera.getWorldDirection( direction );
+            camera.position.add( direction );
+          }
+          if(evt.keyCode==40||evt.keyCode==83) { //backwards
+            var direction = new THREE.Vector3();
+            camera.getWorldDirection( direction );
+            camera.position.sub( direction );
+          }
+          if(evt.keyCode==32) { //jump
+            this.camera = camera;
+            this.camera.position.y+=1;
+          }
+          if(evt.keyCode==17) { //go down //control key
+            this.camera = camera;
+            this.camera.position.y-=1;
+          }
+        });
+
+}
+
+    </script>
+  </body>
+</html>

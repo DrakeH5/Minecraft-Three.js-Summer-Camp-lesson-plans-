@@ -1,0 +1,365 @@
+<html>
+  <head><script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script></head>
+  <body>
+    <center><div id="inventoryDiv"></div></center>
+    <style>
+    body {
+      margin: 0;
+      height: 100vh;
+    }
+
+    canvas {
+      display: block;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: -1;
+    }
+    #inventoryDiv {
+      z-index: 1;
+    }
+    h2 {
+      display:inline;
+      outline: 2px dashed red;
+      margin: 15px;
+      background-color: white;
+    }
+    h3 {
+      display:inline;
+      outline: 2px dashed blue;
+      margin: 15px;
+      background-color: white;
+    }
+    </style>
+
+
+    <script src="./three.js-dev/build/three.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/p5@1.2.0/lib/p5.js"></script>
+    <script>
+function setup(){
+    var scaleFactor = new THREE.BoxGeometry(1, 1, 1); //(width, height, depth)
+
+    //types of blocks
+    const dirt = [
+      "#926c4d", //color
+      0, //hardness
+    ]
+    const grass = [
+      "olivedrab", //color
+      0, //hardness
+    ]
+    const stone = [
+      "grey", //color
+      0, //hardness
+    ]
+    const wood = [
+      "peru", //color
+      0, //hardness
+    ]
+    const leaves = [
+      "lightgreen", //color
+      0, //hardness
+    ]
+    const sand = [
+      "#c2b280", //color
+      0, //hardness
+    ]
+    const gold = [
+      "gold", //color
+      0, //hardness
+    ]
+    const iron = [
+      "white", //color
+      0, //hardness
+    ]
+    const diamond = [
+      "skyblue", //color
+      0, //hardness
+    ]
+
+
+    var minerals = [gold, iron, diamond]
+
+
+
+        var scene = new THREE.Scene(); //created a three.js scene
+
+        var camera = new THREE.PerspectiveCamera(75,window.innerWidth/window.innerHeight,0.1,1000) //create a camera
+        camera.position.y = 70;
+
+        var renderer = new THREE.WebGLRenderer({antialias: true}); //create renderer
+        renderer.setClearColor("lightblue"); //essentially a background color
+        renderer.setSize(window.innerWidth,window.innerHeight); //set renderer size to size of the page
+
+        document.body.appendChild(renderer.domElement); //creates a canvas with our render's specifications
+
+
+        renderer.render(scene, camera); //just render (show) everything on our canvas
+
+
+
+        var chunks = [];
+        var worldLimit = 4; //sets limit of how many chunks the game will create; MUST be a square number
+        var maxHeight = 65; //max build height of the world
+
+        for(i=0;i<worldLimit;i++){
+          chunks.push([]);
+          for(i2=0;i2<maxHeight;i2++){
+            chunks[i].push([]);
+            var yoff=i*16;
+            for(i3=0;i3<16;i3++){
+              chunks[i][i2].push([]);
+              var xoff=i*16;
+              for(i4=0;i4<16;i4++){
+                var index = (i4 + i3 * 16) * 4;
+                var r = (noise(xoff, yoff) * maxHeight-15)+20;
+                if(r<1){r=1}
+                if(r>i2){
+                  if(i2>maxHeight-(maxHeight/2.5)){
+                    chunks[i][i2][i3].push(grass)
+                  } else if(i2>maxHeight/2){
+                    chunks[i][i2][i3].push(dirt)
+                  } else if(i2<maxHeight/5&&Math.random()>0.99){
+                    chunks[i][i2][i3].push(minerals[Math.floor(minerals.length * Math.random())])
+                  } else {
+                    chunks[i][i2][i3].push(stone)
+                  }
+                }
+                xoff+=0.02;
+              }
+              yoff+=0.02;
+            }
+          }
+        }
+
+
+        var block = new THREE.Mesh(scaleFactor, new THREE.MeshLambertMaterial({color: gold[0]}));
+        scene.add(block); //adds our mesh to the scene
+
+
+        var chunksX = 0;
+        var chunksZ = 0;
+        for(i=0;i<worldLimit;i++){
+          for(i2=0;i2<maxHeight;i2++){
+            for(i3=0;i3<16;i3++){
+              for(i4=0;i4<16;i4++){
+                if(chunks[i][i2][i3][i4]!=undefined){
+                  if(i2<1||i3<1||i4<1
+                  ||i2==maxHeight-1||i3==15||i4==15){
+                  var block = new THREE.Mesh(scaleFactor, new THREE.MeshLambertMaterial({color: chunks[i][i2][i3][i4][0]}));
+                  block.position.x = i4+16*chunksX;
+                  block.position.z = i3+16*chunksZ;
+                  block.position.y = i2;
+                  scene.add(block);
+                } else {
+                  if(chunks[i][i2-1][i3][i4]&&chunks[i][i2+1][i3][i4]&&
+                  chunks[i][i2][i3-1][i4]&&chunks[i][i2][i3+1][i4]&&
+                  chunks[i][i2][i3][i4-1]&&chunks[i][i2][i3][i4+1]){}else{
+                    var block = new THREE.Mesh(scaleFactor, new THREE.MeshLambertMaterial({color: chunks[i][i2][i3][i4][0]}));
+                    block.position.x = i4+16*chunksX;
+                    block.position.z = i3+16*chunksZ;
+                    block.position.y = i2;
+                    scene.add(block);
+                  }
+                }
+                }
+              }
+            }
+          }
+          if(chunksX<Math.sqrt(worldLimit)-1){chunksX++}else{chunksX=0;chunksZ++;}
+        }
+
+        var light = new THREE.PointLight(0xFFFFFF, 1, 5000000000000000000000000000); //creates a light (color, intensity, distance)
+        light.position.set(0, 1000000, 0); //sets light position (x, y, z)
+        scene.add(light); //add the light to the scene
+
+
+
+        var raycaster = new THREE.Raycaster();
+        const middle = new THREE.Vector2();
+        middle.x = window.innerWidth/2;
+        middle.y = window.innerHeight/2;
+        var downDirection = new THREE.Vector3( 0, -1, 0 )
+
+        var gravity = 0.2;
+        var playerHeight = 3;
+
+
+        var render = function() {
+          raycaster.set(camera.position, downDirection);
+          const intersects = raycaster.intersectObjects(scene.children);
+          if(intersects.length>0) {
+            if(intersects[0].distance>playerHeight) {
+                camera.position.y-=gravity;
+            }
+          }
+          requestAnimationFrame(render);
+          renderer.render(scene, camera); //just render (show) everything on our canvas
+          renderInventoryBar()
+        }
+
+        render();
+
+
+
+        //disapear mouse cursor
+        document.body.requestPointerLock = document.body.requestPointerLock ||
+                                    document.body.mozRequestPointerLock;
+        document.exitPointerLock = document.exitPointerLock ||
+                                   document.mozExitPointerLock;
+        document.body.onclick = function() {
+          document.body.requestPointerLock();
+        };
+        //end of code disapearing mouse cursor
+
+        document.body.onmousemove = function(evt) {
+          camera.rotation.y-=evt.movementX/65;
+          //if(Math.abs(camera.rotation.x)<1){camera.rotation.x-=evt.movementY/65;}else{camera.rotation.x-=(camera.rotation.x/Math.abs(camera.rotation.x))/100}
+        };
+
+
+        $(document.body).keydown(function (evt) {
+          if(evt.keyCode==87) { //forwards
+            camera.rotation.x=0;
+            var direction = new THREE.Vector3();
+            camera.getWorldDirection( direction );
+            raycaster.set(camera.position, direction);
+            const intersects = raycaster.intersectObjects(scene.children);
+            if(intersects.length>0) {
+              if(intersects[0].distance>3) {
+                camera.position.add( direction );
+              }
+            } else {
+              camera.position.add( direction );
+            }
+          }
+          if(evt.keyCode==83) { //backwards
+            camera.rotation.x=0;
+            var direction = new THREE.Vector3();
+            camera.getWorldDirection( direction );
+            raycaster.set(camera.position, direction.negate());
+            direction.negate()
+            const intersects = raycaster.intersectObjects(scene.children);
+            if(intersects.length>0) {
+              if(intersects[0].distance>3) {
+                camera.position.sub( direction );
+              }
+            } else {
+              camera.position.sub( direction );
+            }
+          }
+          if(evt.keyCode==32) { //jump
+            var downDirection = new THREE.Vector3( 0, -1, 0 )
+            raycaster.set(camera.position, downDirection);
+            const intersects = raycaster.intersectObjects(scene.children);
+            if(intersects.length>0) {
+              if(intersects[0].distance<3){
+                this.camera = camera;
+                this.camera.position.y+=1;
+              }
+            }
+          }
+          /*if(evt.keyCode==17) { //go down //control key
+            this.camera = camera;
+            this.camera.position.y-=1;
+          }*/
+          if(evt.keyCode==38) { //camera look up
+            this.camera = camera;
+            this.camera.rotation.x-=0.01;
+          }
+          if(evt.keyCode==40) { //camera look down
+            this.camera = camera;
+            this.camera.rotation.x+=0.01;
+          }
+        });
+
+
+        var inventoryDef = [["tool"],[dirt],[stone],[wood],[gold],[iron],[diamond]];
+        document.addEventListener('click',function(event){
+        if(event.button==2){
+          var direction = new THREE.Vector3();
+          camera.getWorldDirection( direction );
+          raycaster.set(camera.position, direction);
+          const intersects = raycaster.intersectObjects(scene.children);
+          if(intersects.length>0) {
+            var face = intersects[0].face.normal;
+            var position = intersects[0].object.position;
+            var block = new THREE.Mesh(scaleFactor, new THREE.MeshLambertMaterial({color: inventoryDef[selected][0][0]}));
+            block.position.x = position.x+face.x; //postion + (face*scaleFactor); scale factor happens to just be 1
+            block.position.z = position.z+face.z;
+            block.position.y = position.y+face.y;
+            scene.add(block);
+          }
+        } else if(event.button==0){
+          var direction = new THREE.Vector3();
+          camera.getWorldDirection( direction );
+          raycaster.set(camera.position, direction);
+          const intersects = raycaster.intersectObjects(scene.children);
+          if(intersects.length>0) {
+              var blockToRemove = intersects[0].object;
+              scene.remove(blockToRemove)
+              var chunk = ((Math.floor(blockToRemove.position.z/16))*Math.sqrt(worldLimit))+Math.floor(blockToRemove.position.x/16)
+              var zPos = blockToRemove.position.z - Math.floor(blockToRemove.position.z/16)*16
+              var xPos = blockToRemove.position.x - Math.floor(blockToRemove.position.x/16)*16
+              chunks[chunk][blockToRemove.position.y][zPos][xPos] = undefined
+                for(i=-1;i<3;i+=2){
+                  if(chunks[chunk][blockToRemove.position.y+i][zPos][xPos]!=undefined){
+                    var block = new THREE.Mesh(scaleFactor, new THREE.MeshLambertMaterial({color: chunks[chunk][blockToRemove.position.y+i][zPos][xPos][0]}));
+                    block.position.x = xPos+16*Math.floor(blockToRemove.position.x/16);
+                    block.position.z = zPos+16*Math.floor(blockToRemove.position.z/16);
+                    block.position.y = blockToRemove.position.y+i;
+                    scene.add(block);
+                  }
+                  if(chunks[chunk][blockToRemove.position.y][zPos+i][xPos]!=undefined){
+                    var block = new THREE.Mesh(scaleFactor, new THREE.MeshLambertMaterial({color: chunks[chunk][blockToRemove.position.y][zPos+i][xPos][0]}));
+                    block.position.x = blockToRemove.position.x;
+                    block.position.z = blockToRemove.position.z+i;
+                    block.position.y = blockToRemove.position.y;
+                    scene.add(block);
+                  }
+                  if(chunks[chunk][blockToRemove.position.y][zPos][xPos+i]!=undefined){
+                    var block = new THREE.Mesh(scaleFactor, new THREE.MeshLambertMaterial({color: chunks[chunk][blockToRemove.position.y][zPos][xPos+i][0]}));
+                    block.position.x = blockToRemove.position.x+i;
+                    block.position.z = blockToRemove.position.z;
+                    block.position.y = blockToRemove.position.y;
+                    scene.add(block);
+                  }
+                }
+          }
+        }
+      }, false);
+
+
+}
+
+
+
+
+var selected = 0;
+var inventory = [["wood"],[0],[0],[0],[0],[0],[0]]; 
+      function renderInventoryBar(){
+        var inventoryBar = document.getElementById("inventoryDiv");
+        inventoryBar.innerHTML="";
+        if(selected>inventory.length-1){selected=0}
+        if(selected<0){selected=inventory.length-1}
+        for(i=0;i<inventory.length;i++){
+          if(selected==i){
+            var item = document.createElement("h2");
+          } else {
+            var item = document.createElement("h3");
+          }
+          item.innerText = inventory[i];
+          inventoryBar.appendChild(item)
+        }
+      }
+
+      document.addEventListener('wheel',function(event){
+        selected+=event.deltaY/100
+      }, false);
+
+      
+
+
+    </script>
+  </body>
+</html>
